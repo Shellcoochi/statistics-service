@@ -79,7 +79,20 @@ function statisticsInfo(logInfo) {
         st[`${category}.${action}.${label}`] = (st[`${category}.${action}.${label}`] ?? 0) + 1
         st[`${category}.${action}.${label}.${value}`] = (st[`${category}.${action}.${label}.${value}`] ?? 0) + 1
     })
-   return st
+    return parseStatisticsInfo(st)
+}
+
+/**
+ * 转换分渠道统计数据结构
+ */
+function parseStatisticsInfo(st) {
+    return Object.keys(st).map(key => {
+        return {
+            date: new Date().toLocaleString('zh-CN').substring(0, 9),
+            key,
+            value: { num: st[key] }
+        }
+    })
 }
 
 /**
