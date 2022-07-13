@@ -1,6 +1,7 @@
 const cron = require('node-cron')
 const fse = require('fs-extra')
 const path = require('path')
+const querystring =require('querystring')
 const fs = require('fs');
 const readline = require('readline');
 
@@ -23,28 +24,85 @@ function removeContent(dir) {
     fse.outputFileSync(dir, '')
 }
 
+/**
+ * 逐行读取日志文件
+ * @param {*} filePath 
+ */
 function processLineByLine(filePath) {
-    const fileStream = fs.createReadStream(filePath);
+    const logInfo =[];
+    const readStream = fs.createReadStream(filePath);
     const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
+        input: readStream,
     });
-    rl.on('line',function(line){
-        console.log('line',line)
+    rl.on('line', function (line) {
+        //解析日志信息
+        const info = parseLogInfo(line)
+        logInfo.push(info)
+       
     })
+
+    rl.on("close", () => {
+        console.log('数据读取解析结束:',logInfo)
+    });
+}
+
+/**
+ * 解析日志信息
+ * @param {*} oneLog 
+ */
+function parseLogInfo(oneLog) {
+    let result = {}
+    const reg = /GET\s\/police.png\?(.+?)\s/;
+    const matchResult = oneLog.match(reg);
+    if (matchResult) {//这个判断没必要，nginx配置可够滤掉改请求意外地请求，本地未配置暂时先加上
+        const queryStr = matchResult[1];
+        //解析get请求中的参数
+        // queryStr.replace(/([^?&=]+)=([^&]+)/g, (_, k, v) => result[k] = v);
+        result = new URLSearchParams(queryStr)
+    }
+    return result
+}
+
+/**
+ * 分渠道统计
+ */
+function statisticsInfo(){
+
+}
+
+/**
+ * 生成日志文件名
+ */
+function genYesterdayLogFileName() {
+    const beijingTime = new Date().toLocaleString('zh-CN')
+    return beijingTime.substring(0, 9).replaceAll('/', '-') + '.log'
+}
+
+/**
+ * 拆分日志
+ * @param {*} accessLogPath 
+ */
+function splitLogFile(accessLogPath) {
+    const accessLogFile = path.resolve(accessLogPath, 'access.log')
+    const distFolder = path.join(accessLogPath, 'schedule');
+    fse.ensureDirSync(distFolder);
+    const distFile = path.join(distFolder, genYesterdayLogFileName());
+    fse.ensureFileSync(distFile);
+    fse.outputFileSync(distFile, "");
+
+    fse.copySync(accessLogFile, distFile);
+
+    fse.outputFileSync(accessLogFile, "");
 }
 
 
 function main() {
-    const baseDir = path.resolve(__dirname, '../logs/test.log')
-    const logPath = path.resolve(__dirname, '../schedule-logs/20220712.log')
-    // 每天凌晨将logs中的test.log 复制到schedule-logs对应的日期日志中
-    copyLogFile(baseDir, logPath)
-    // schedule('* * * * * *',copyLogFile)
-    //复制完成后将test.log内容清空
-    removeContent(baseDir);
-    //逐行读取日志内容
-    processLineByLine(logPath)
+    const accessLogPath = '/work/test/nginx-1.22.0/logs'
+    //每日凌点拆分日志
+    // splitLogFile(accessLogPath)
+    //在拆分日志后每日凌晨3点进行日志解析
+    processLineByLine(accessLogPath + '/schedule/' + genYesterdayLogFileName())
+
 }
 
 main()
