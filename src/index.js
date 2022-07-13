@@ -48,6 +48,28 @@ function processLineByLine(filePath) {
 }
 
 /**
+ * 删除过期文件
+ */
+function removeExpiredLogs(distFolder) {
+    const fileNames = fse.readdirSync(distFolder);
+    fileNames.forEach((fileName) => {
+        try {
+            // fileName 格式 '2021-09-14.log'
+            const dateStr = fileName.split(".")[0];
+            const d = new Date(dateStr);
+            const t = Date.now() - d.getTime();
+            if (t / 1000 / 60 / 60 / 24 > 90) {
+                // 时间间隔，大于 90 天，则删除日志文件
+                const filePath = path.join(distFolder, fileName);
+                fse.removeSync(filePath);
+            }
+        } catch (error) {
+            console.error(`日志文件格式错误 ${fileName}`, error);
+        }
+    });
+}
+
+/**
  * 解析日志信息
  * @param {*} oneLog 
  */
@@ -127,6 +149,8 @@ function main() {
     // splitLogFile(accessLogPath)
     //在拆分日志后每日凌晨3点进行日志解析
     processLineByLine(accessLogPath + '/schedule/' + genYesterdayLogFileName())
+    //定期删除过期的日志文件
+    removeExpiredLogs(accessLogPath + '/schedule')
 
 }
 
