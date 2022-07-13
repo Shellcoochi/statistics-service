@@ -1,7 +1,6 @@
 const cron = require('node-cron')
 const fse = require('fs-extra')
 const path = require('path')
-const querystring =require('querystring')
 const fs = require('fs');
 const readline = require('readline');
 
@@ -29,7 +28,7 @@ function removeContent(dir) {
  * @param {*} filePath 
  */
 function processLineByLine(filePath) {
-    const logInfo =[];
+    const logInfo = [];
     const readStream = fs.createReadStream(filePath);
     const rl = readline.createInterface({
         input: readStream,
@@ -38,11 +37,13 @@ function processLineByLine(filePath) {
         //解析日志信息
         const info = parseLogInfo(line)
         logInfo.push(info)
-       
+
     })
 
     rl.on("close", () => {
-        console.log('数据读取解析结束:',logInfo)
+        const st = statisticsInfo(logInfo)
+        console.log('数据读取解析结果:', logInfo)
+        console.log('分渠道统计结果:', st)
     });
 }
 
@@ -66,8 +67,19 @@ function parseLogInfo(oneLog) {
 /**
  * 分渠道统计
  */
-function statisticsInfo(){
-
+function statisticsInfo(logInfo) {
+    const st = {}
+    logInfo.forEach(info => {
+        const category = info.get('category')
+        const action = info.get('action')
+        const label = info.get('label')
+        const value = info.get('value')
+        st[category] = (st[category] ?? 0) + 1
+        st[`${category}.${action}`] = (st[`${category}.${action}`] ?? 0) + 1
+        st[`${category}.${action}.${label}`] = (st[`${category}.${action}.${label}`] ?? 0) + 1
+        st[`${category}.${action}.${label}.${value}`] = (st[`${category}.${action}.${label}.${value}`] ?? 0) + 1
+    })
+   return st
 }
 
 /**
